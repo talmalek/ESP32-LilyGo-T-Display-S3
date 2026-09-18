@@ -1,0 +1,7 @@
+.pio/
+.vscode/
+.idea/
+*.bin
+!backup/firmware_backup_original.bin
+.DS_Store
+*.pyc
