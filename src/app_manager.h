@@ -33,6 +33,10 @@ public:
     void switchTo(AppState newState);
     void launchAPPortal();
     void factoryReset();
+    void setBrightness(int val);
+    void triggerImmediateCgmFetch();
+    AppState getCurrentState() const { return _currentState; }
+    String getCurrentStateName() const;
 
 private:
     AppManager() = default;

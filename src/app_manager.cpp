@@ -1,4 +1,5 @@
 #include "app_manager.h"
+#include "web_server_manager.h"
 #include <time.h>
 #include <esp_sntp.h>
 
@@ -28,6 +29,9 @@ void AppManager::begin() {
     Serial.printf("[Config] Dexcom User: %s | Server: %s | TZ: GMT+%d\n",
                   cfg.dexcomUser.c_str(), cfg.dexcomServer.c_str(), cfg.timezoneOffset);
 
+    // Set initial brightness
+    setBrightness(cfg.screenBrightness);
+
     DexcomClient::getInstance().setCredentials(
         cfg.dexcomUser, cfg.dexcomPass, cfg.dexcomServer
     );
@@ -39,15 +43,39 @@ void AppManager::begin() {
     switchTo(AppState::Launcher);
 }
 
+void AppManager::setBrightness(int val) {
+    val = constrain(val, 10, 255);
+    ConfigManager::getInstance().getConfig().screenBrightness = val;
+    ledcWrite(0, val);
+}
+
+void AppManager::triggerImmediateCgmFetch() {
+    if (_cgmTaskHandle) {
+        xTaskNotifyGive(_cgmTaskHandle);
+    }
+}
+
+String AppManager::getCurrentStateName() const {
+    switch (_currentState) {
+        case AppState::Launcher: return "Launcher";
+        case AppState::Clock: return "Clock";
+        case AppState::CGM: return "Dexcom CGM";
+        case AppState::Settings: return "Settings";
+        default: return "Unknown";
+    }
+}
+
 void AppManager::initDisplay() {
     // 1. Enable power to LCD
     pinMode(PIN_POWER_ON, OUTPUT);
     digitalWrite(PIN_POWER_ON, HIGH);
     delay(100);
 
-    // 2. Setup Backlight pin
+    // 2. Setup Backlight pin with PWM for brightness control
     pinMode(PIN_LCD_BL, OUTPUT);
-    digitalWrite(PIN_LCD_BL, HIGH);
+    ledcSetup(0, 5000, 8);
+    ledcAttachPin(PIN_LCD_BL, 0);
+    ledcWrite(0, 200);
 
     // 3. Initialize TFT_eSPI
     _tft.begin();
@@ -108,7 +136,8 @@ static void cgmBackgroundTask(void* param) {
         Serial.println("[CGM Task] Fetching reading in background...");
         DexcomClient::getInstance().fetchLatestReading(reading, history);
         Serial.printf("[CGM Task] Done. Valid: %d, Val: %d\n", reading.isValid, reading.value);
-        vTaskDelay(pdMS_TO_TICKS(60000)); // Sleep 60 seconds
+        // Sleep for 60 seconds or wake early if triggered from web dashboard
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(60000));
     }
 }
 
@@ -157,6 +186,9 @@ void AppManager::initWiFi() {
         AppConfig& cfg = ConfigManager::getInstance().getConfig();
         long gmtOffset = cfg.timezoneOffset * 3600;
         configTime(gmtOffset, 0, "pool.ntp.org", "time.google.com");
+
+        // Start Web Server
+        WebServerManager::getInstance().begin();
     } else {
         Serial.println("[WiFi] Could not connect. Launching Config Portal AP...");
         launchAPPortal();
@@ -215,6 +247,9 @@ void AppManager::launchAPPortal() {
 
         long gmtOffset = cfg.timezoneOffset * 3600;
         configTime(gmtOffset, 0, "pool.ntp.org", "time.google.com");
+
+        // Start Web Server after portal configuration
+        WebServerManager::getInstance().begin();
     } else {
         Serial.println("[WiFiManager] Config portal timed out or skipped.");
     }
@@ -307,6 +342,9 @@ void AppManager::update() {
         }
     }
     _b2Prev = b2Current;
+
+    // Service Web Server requests
+    WebServerManager::getInstance().handleClient();
 
     // App periodic UI updates
     if (_currentState == AppState::Clock) {
@@ -562,15 +600,19 @@ void AppManager::drawSettings() {
     _spr.drawString("Press B2 to open AP", 20, 115, 1);
 
     // Info Box
-    _spr.fillRoundRect(10, 160, 150, 120, 8, COLOR_CARD_BG);
+    _spr.fillRoundRect(10, 155, 150, 145, 8, COLOR_CARD_BG);
     _spr.setTextColor(COLOR_TEXT_WHITE, COLOR_CARD_BG);
-    _spr.drawString("Configuration:", 20, 172, 2);
+    _spr.drawString("Web Dashboard:", 20, 165, 2);
+    _spr.setTextColor(COLOR_GREEN, COLOR_CARD_BG);
+    _spr.drawString("http://" + WiFi.localIP().toString(), 20, 185, 1);
 
+    _spr.setTextColor(COLOR_TEXT_WHITE, COLOR_CARD_BG);
+    _spr.drawString("Configuration:", 20, 205, 2);
     _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_CARD_BG);
-    _spr.drawString("Server: " + cfg.dexcomServer, 20, 195, 1);
-    _spr.drawString("User: " + (cfg.dexcomUser.length() > 0 ? cfg.dexcomUser.substring(0, 8) + "..." : "Not set"), 20, 215, 1);
-    _spr.drawString("Timezone: GMT+" + String(cfg.timezoneOffset), 20, 235, 1);
-    _spr.drawString("IP: " + WiFi.localIP().toString(), 20, 255, 1);
+    _spr.drawString("Server: " + cfg.dexcomServer, 20, 225, 1);
+    _spr.drawString("User: " + (cfg.dexcomUser.length() > 0 ? cfg.dexcomUser.substring(0, 8) + "..." : "Not set"), 20, 245, 1);
+    _spr.drawString("Timezone: GMT+" + String(cfg.timezoneOffset), 20, 265, 1);
+    _spr.drawString("WiFi RSSI: " + String(WiFi.RSSI()) + " dBm", 20, 285, 1);
 
     _spr.pushSprite(0, 0);
 }
