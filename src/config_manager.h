@@ -9,6 +9,8 @@ struct AppConfig {
     int timezoneOffset = 2;         // Hours from UTC (e.g. 2 for Israel Standard, 3 for Daylight)
     int screenBrightness = 200;     // 10 - 255
     bool use24HourFormat = true;
+    int targetLow = 70;             // mg/dL low threshold
+    int targetHigh = 180;           // mg/dL high threshold
 };
 
 class ConfigManager {
@@ -26,6 +28,8 @@ public:
         _config.timezoneOffset = _prefs.getInt("tz_offset", 2);
         _config.screenBrightness = _prefs.getInt("brightness", 200);
         _config.use24HourFormat = _prefs.getBool("time_24h", true);
+        _config.targetLow = _prefs.getInt("tgt_low", 70);
+        _config.targetHigh = _prefs.getInt("tgt_high", 180);
     }
 
     AppConfig& getConfig() {
@@ -39,6 +43,8 @@ public:
         _prefs.putInt("tz_offset", _config.timezoneOffset);
         _prefs.putInt("brightness", _config.screenBrightness);
         _prefs.putBool("time_24h", _config.use24HourFormat);
+        _prefs.putInt("tgt_low", _config.targetLow);
+        _prefs.putInt("tgt_high", _config.targetHigh);
     }
 
     void resetAll() {
