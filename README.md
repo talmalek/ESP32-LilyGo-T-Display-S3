@@ -12,9 +12,11 @@ Features interactive on-device controls, multi-orientation display support, mult
 - Fast interactive vertical menu formatted for the 170x320 IPS display.
 - Double-buffered, flicker-free rendering via PSRAM sprites (`TFT_eSprite`).
 - Direct navigation with hardware buttons and dual-button chord exit.
+- Live Wi-Fi signal strength fan icon in status bar.
 
 ### 2. Clock App (Multiple Watch Faces & Orientation)
 - **Automatic SNTP Sync**: Synchronizes with network time servers (`pool.ntp.org`, `time.google.com`).
+- **Live Status Header**: Graphical Wi-Fi fan icon displaying real-time RSSI signal strength and watch face badge.
 - **3 Dynamic Watch Faces** (Toggle with **Button 1**):
   1. **Modern Digital**: Clean 7-segment digital time, weekday and date, live 60-second progress bar, and large bottom seconds readout.
   2. **Bold Digital**: Massive stacked Hour & Minute numbers, date chip, and giant yellow seconds card.
@@ -25,21 +27,24 @@ Features interactive on-device controls, multi-orientation display support, mult
 
 ### 3. Dexcom CGM App (3 View Modes, Orientation & Vector Trends)
 - **Direct Dexcom Share API Integration**: Connects securely with both US (`share1.dexcom.com`) and International (`shareous1.dexcom.com`) servers.
+- **Dynamic Graphical Wi-Fi Signal Strength Fan Icon**:
+  - Live RSSI-based 3-arc icon across all screens: Green (Strong > -60 dBm), Cyan (Medium -75 to -60 dBm), Yellow (Weak < -75 dBm), and Red Disconnected indicator.
 - **Precision Vector Trend Arrows**: High-resolution vector glyphs for all 7 Dexcom trend directions:
   - Double Up (`^^`), Single Up (`^`), Forty-Five Up (`/^`), Flat (`->`), Forty-Five Down (`\v`), Single Down (`v`), and Double Down (`vv`).
 - **Configurable Target Thresholds**: User-defined Target Low (default 70 mg/dL) and Target High (default 180 mg/dL) with dynamic color coding (Green: In-Range, Yellow: High, Red: Low/Urgent).
 - **3 View Modes** (Cycle with **Button 1**):
-  1. **Value + Graph**: Digital Font 7 glucose reading, delta value (`+/-`), vector trend arrow, elapsed age ("Xs ago"), and trend history graph with dashed target boundaries.
-  2. **Value Full-Screen**: Extra-large Font 8 glucose reading with full-width delta pill badge, vector trend arrow, and elapsed time.
-  3. **Graph Full-Screen**: Full-screen continuous glucose history curve with summary header and min/max reference lines.
+  1. **Value + Graph**: Digital Font 7 glucose reading, delta value (`+/-`), vector trend arrow, elapsed age ("Xs ago"), and trend history graph with target boundaries.
+  2. **Value Full-Screen**: Extra-large Font 8 glucose reading with centered delta pill badge, vector trend arrow, and elapsed time.
+  3. **Graph Full-Screen**: Full-screen continuous glucose history curve with dynamically measured, boundary-safe summary banner and min/max reference lines.
 - **Orientation Toggle** (Toggle with **Button 2**):
-  - Seamlessly switch between Vertical (170x320) and Landscape (320x170) widescreen modes.
+  - Seamlessly switch between Vertical (170x320) and Landscape (320x170) widescreen modes without header or status overlaps.
 - **Decoupled Background Polling**: FreeRTOS background task with automatic 60-second polling and live on-screen sync countdown.
 
 ### 4. Settings & Wi-Fi Setup AP Mode
 - **Clean Settings Interface**:
   - **Set Device (AP)**: One-click launch of the onboard captive configuration portal.
   - **Information Card**: Displays live IP address, Dexcom server, active account, timezone offset (`GMT±X`), and Wi-Fi RSSI signal strength.
+  - **Header**: Live Wi-Fi signal strength fan icon.
 - **Dedicated AP Setup Screen**:
   - Clear, centered instructions indicating AP Mode.
   - Explicit connection details (`T-Display AP` SSID and `192.168.4.1` web setup address).

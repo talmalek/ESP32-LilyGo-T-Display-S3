@@ -81,6 +81,7 @@ private:
     void drawSettings();
     void drawWiFiPortalScreen();
     void drawTrendArrow(int cx, int cy, CgmTrend trend, uint16_t color, int size = 10);
+    void drawWiFiIcon(int x, int y, int size = 14);
 
     // Background tasks
     void updateTime();

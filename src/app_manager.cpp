@@ -496,6 +496,9 @@ void AppManager::update() {
 void AppManager::drawLauncher() {
     _spr.fillSprite(COLOR_BG);
 
+    // Status Bar: WiFi Icon at top-left
+    drawWiFiIcon(8, 6, 14);
+
     // Header with smooth FreeSansBold9
     _spr.setTextColor(COLOR_ACCENT, COLOR_BG);
     _spr.setTextDatum(TC_DATUM);
@@ -584,14 +587,12 @@ void AppManager::drawClock() {
 void AppManager::drawClockVertical(int w, int h, const struct tm& timeinfo) {
     AppConfig& cfg = ConfigManager::getInstance().getConfig();
 
-    // 1. Top status line: WiFi indicator & Watch face badge
-    _spr.setTextFont(2);
-    _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
-    _spr.setTextDatum(TL_DATUM);
-    _spr.drawString((WiFi.status() == WL_CONNECTED) ? "WiFi: OK" : "WiFi: DIS", 8, 6);
+    // 1. Top status line: WiFi icon & Watch face badge
+    drawWiFiIcon(8, 4, 14);
 
     // Watch Face Name Badge top-right
     const char* faceNames[] = {"Modern", "Bold", "Minimal"};
+    _spr.setTextFont(2);
     _spr.setTextDatum(TR_DATUM);
     _spr.setTextColor(COLOR_ACCENT, COLOR_BG);
     _spr.drawString(faceNames[static_cast<int>(_clockFaceMode)], w - 8, 6);
@@ -754,13 +755,11 @@ void AppManager::drawClockVertical(int w, int h, const struct tm& timeinfo) {
 void AppManager::drawClockHorizontal(int w, int h, const struct tm& timeinfo) {
     AppConfig& cfg = ConfigManager::getInstance().getConfig();
 
-    // 1. Top status line: WiFi (left), Face name (center), Rotate B2 (top right)
-    _spr.setTextFont(2);
-    _spr.setTextDatum(TL_DATUM);
-    _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
-    _spr.drawString((WiFi.status() == WL_CONNECTED) ? "WiFi: OK" : "WiFi: DIS", 8, 6);
+    // 1. Top status line: WiFi icon (left), Face name (center), Rotate B2 (top right)
+    drawWiFiIcon(8, 4, 14);
 
     const char* faceNames[] = {"Modern", "Bold", "Minimal"};
+    _spr.setTextFont(2);
     _spr.setTextDatum(TC_DATUM);
     _spr.setTextColor(COLOR_ACCENT, COLOR_BG);
     _spr.drawString(faceNames[static_cast<int>(_clockFaceMode)], w / 2 - 20, 6);
@@ -937,21 +936,71 @@ void AppManager::drawTrendArrow(int cx, int cy, CgmTrend trend, uint16_t color, 
     }
 }
 
-void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std::vector<int>& history, int syncSecRemaining) {
-    // 1. Top status line: "Wifi: OK/FAIL" (left) & "Sync in: [sec]" (right)
-    _spr.setTextFont(2);
-    _spr.setTextDatum(TL_DATUM);
-    if (WiFi.status() == WL_CONNECTED) {
-        _spr.setTextColor(COLOR_GREEN, COLOR_BG);
-        _spr.drawString("Wifi: OK", 8, 8);
-    } else {
-        _spr.setTextColor(COLOR_RED, COLOR_BG);
-        _spr.drawString("Wifi: FAIL", 8, 8);
+void AppManager::drawWiFiIcon(int x, int y, int size) {
+    // Draws a WiFi icon (dot + concentric arcs) indicating RSSI signal strength
+    bool isConnected = (WiFi.status() == WL_CONNECTED);
+    if (!isConnected) {
+        // Red disconnected indicator with exclamation/cross
+        _spr.fillCircle(x + size / 2, y + size - 3, 2, COLOR_RED);
+        _spr.drawLine(x + 2, y + 2, x + size - 2, y + size - 2, COLOR_RED);
+        _spr.drawLine(x + size - 2, y + 2, x + 2, y + size - 2, COLOR_RED);
+        return;
     }
 
-    _spr.setTextDatum(TR_DATUM);
-    _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
-    _spr.drawString("Sync: " + String(syncSecRemaining) + "s", w - 8, 8);
+    int rssi = WiFi.RSSI(); // e.g. -45 dBm (strong) to -85 dBm (weak)
+    // Signal levels:
+    // level 3 (strong): > -60 dBm
+    // level 2 (medium): -75 dBm to -60 dBm
+    // level 1 (weak):   < -75 dBm
+    int level = 1;
+    if (rssi > -60) level = 3;
+    else if (rssi > -75) level = 2;
+
+    int cx = x + size / 2;
+    int cy = y + size - 2;
+
+    uint16_t activeCol = (level == 3) ? COLOR_GREEN : ((level == 2) ? COLOR_ACCENT : COLOR_YELLOW);
+    uint16_t inactiveCol = 0x2965; // subtle dark grey/blue for inactive arcs
+
+    // Bottom center dot
+    _spr.fillCircle(cx, cy, 2, activeCol);
+
+    // Inner arc (level >= 1)
+    uint16_t col1 = (level >= 1) ? activeCol : inactiveCol;
+    for (int deg = -55; deg <= 55; deg += 4) {
+        float rad = (deg - 90) * 0.0174532925f;
+        _spr.drawPixel(cx + (int)(cos(rad) * 6), cy + (int)(sin(rad) * 6), col1);
+    }
+
+    // Middle arc (level >= 2)
+    uint16_t col2 = (level >= 2) ? activeCol : inactiveCol;
+    for (int deg = -55; deg <= 55; deg += 3) {
+        float rad = (deg - 90) * 0.0174532925f;
+        _spr.drawPixel(cx + (int)(cos(rad) * 10), cy + (int)(sin(rad) * 10), col2);
+        _spr.drawPixel(cx + (int)(cos(rad) * 11), cy + (int)(sin(rad) * 11), col2);
+    }
+
+    // Outer arc (level >= 3)
+    uint16_t col3 = (level >= 3) ? activeCol : inactiveCol;
+    for (int deg = -55; deg <= 55; deg += 2) {
+        float rad = (deg - 90) * 0.0174532925f;
+        _spr.drawPixel(cx + (int)(cos(rad) * 15), cy + (int)(sin(rad) * 15), col3);
+        _spr.drawPixel(cx + (int)(cos(rad) * 16), cy + (int)(sin(rad) * 16), col3);
+    }
+}
+
+void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std::vector<int>& history, int syncSecRemaining) {
+    // 1. Top status line: WiFi signal strength fan icon (left) & (in View 2 & 3) "Sync in: [sec]" (right)
+    drawWiFiIcon(8, 4, 14);
+
+    // In View 1, Sync time is displayed right next to the graph below.
+    // In View 2 & 3, keep Sync time at top right:
+    if (_cgmViewMode != CgmViewMode::ValueAndGraph) {
+        _spr.setTextFont(2);
+        _spr.setTextDatum(TR_DATUM);
+        _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+        _spr.drawString("Sync: " + String(syncSecRemaining) + "s", w - 8, 6);
+    }
 
     // Bottom Navigation Bar: "B1: Mode" (left) & "Rot: B2" (right) in Font 2
     _spr.drawFastHLine(10, h - 30, w - 20, COLOR_CARD_BG);
@@ -1007,30 +1056,42 @@ void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std:
     // View 1: Value + Graph (Vertical)
     // -----------------------------------------------------------
     if (_cgmViewMode == CgmViewMode::ValueAndGraph) {
-        // Value (Font 7 = 7-segment digital font)
+        // Top status line for View 1: WiFi fan icon (left) and Age/reading freshness (right)
+        drawWiFiIcon(8, 4, 14);
+
+        _spr.setTextFont(2);
+        _spr.setTextDatum(TR_DATUM);
+        _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+        _spr.drawString(ageStr, w - 8, 6);
+
+        // Lowered and enlarged CGM Value:
+        // Positioned slightly lower from y=28 to y=38
         _spr.setTextColor(valColor, COLOR_BG);
         _spr.setTextDatum(TC_DATUM);
-        _spr.drawString(String(cgm.value), w / 2, 28, 7);
+        _spr.drawString(String(cgm.value), w / 2, 38, 7);
 
-        // Delta and Vector Arrow
-        // Draw delta text centered slightly left, and vector arrow right next to it
+        // Delta and Vector Arrow line, lowered to y=106
         _spr.setTextColor(COLOR_TEXT_WHITE, COLOR_BG);
         _spr.setFreeFont(&FreeSansBold9pt7b);
         _spr.setTextDatum(MR_DATUM);
-        _spr.drawString("mg/dL  " + deltaStr, w / 2 + 10, 94);
-        drawTrendArrow(w / 2 + 28, 94, cgm.trend, valColor, 10);
+        _spr.drawString("mg/dL  " + deltaStr, w / 2 + 10, 106);
+        drawTrendArrow(w / 2 + 28, 106, cgm.trend, valColor, 11);
 
-        // Age (Font 2)
-        _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+        // Time of Sync moved down right above the graph
         _spr.setTextFont(2);
-        _spr.setTextDatum(TC_DATUM);
-        _spr.drawString(ageStr, w / 2, 118);
+        _spr.setTextDatum(TR_DATUM);
+        _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+        _spr.drawString("Sync: " + String(syncSecRemaining) + "s", w - 10, 134);
 
-        // Graph
+        _spr.setTextDatum(TL_DATUM);
+        _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+        _spr.drawString("Trend", 10, 134);
+
+        // Graph lowered closer to the bottom button titles (gy=154, gh=130, bottom at y=284)
         int gx = 10;
-        int gy = 144;
+        int gy = 154;
         int gw = w - 20;
-        int gh = 106;
+        int gh = 130;
         _spr.fillRoundRect(gx, gy, gw, gh, 6, COLOR_CARD_BG);
         _spr.drawRoundRect(gx, gy, gw, gh, 6, 0x39E7);
 
@@ -1060,18 +1121,20 @@ void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std:
     // View 2: CGM Value Big Full Screen (Vertical)
     // -----------------------------------------------------------
     else if (_cgmViewMode == CgmViewMode::ValueFullScreen) {
-        // Big Glucose Reading
+        // Vertical centering: Screen area between status (y=24) and nav bar (y=290) is 266px.
+        // Center line is y = 157.
+        // Big Glucose Reading centered at y = 92
         _spr.setTextColor(valColor, COLOR_BG);
         _spr.setTextDatum(MC_DATUM);
-        _spr.drawString(String(cgm.value), w / 2, 85, 8); // Huge font 8
+        _spr.drawString(String(cgm.value), w / 2, 92, 8); // Huge Font 8
 
-        // Units
-        _spr.setTextDatum(TC_DATUM);
+        // Units ("mg/dL") at y = 138
+        _spr.setTextDatum(MC_DATUM);
         _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
         _spr.setTextFont(2);
-        _spr.drawString("mg/dL", w / 2, 130);
+        _spr.drawString("mg/dL", w / 2, 138);
 
-        // Prominent Change with explicit +/- badge and vector trend arrow
+        // Prominent Change pill badge with delta and vector trend arrow
         uint16_t deltaCol = COLOR_GREEN;
         if (cgm.delta > 0) {
             deltaCol = (cgm.value > tgtHigh) ? COLOR_YELLOW : COLOR_GREEN;
@@ -1080,32 +1143,62 @@ void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std:
         }
         String deltaFull = (cgm.delta > 0 ? "+" : "") + String(cgm.delta);
 
-        _spr.fillRoundRect(12, 156, w - 24, 48, 8, COLOR_CARD_BG);
-        _spr.drawRoundRect(12, 156, w - 24, 48, 8, 0x39E7);
+        // Centered Pill Badge (w: 120, h: 42, centered at y = 176)
+        int pillW = 120;
+        int pillH = 42;
+        int pillX = (w - pillW) / 2;
+        int pillY = 155;
+        _spr.fillRoundRect(pillX, pillY, pillW, pillH, 21, COLOR_CARD_BG);
+        _spr.drawRoundRect(pillX, pillY, pillW, pillH, 21, 0x39E7);
 
-        // Delta number on left of badge, vector arrow on right of badge
-        _spr.setTextDatum(MR_DATUM);
+        // Calculate combined width of delta text (Font 4) + spacing + vector arrow
+        // Font 4 has height 26px and fits cleanly within 42px pill height
+        _spr.setTextFont(4);
+        int textW = _spr.textWidth(deltaFull);
+        int arrowSize = 10;
+        int arrowW = arrowSize * 2; // total arrow bounding box width
+        int gap = 8;
+        int totalContentW = textW + gap + arrowW;
+
+        // Content starting X inside pill to be perfectly centered
+        int startX = pillX + (pillW - totalContentW) / 2;
+        int centerY = pillY + (pillH / 2);
+
+        // Delta text
+        _spr.setTextDatum(ML_DATUM);
         _spr.setTextColor(deltaCol, COLOR_CARD_BG);
-        _spr.drawString(deltaFull, w / 2 + 5, 180, 6); // Large font 6
+        _spr.drawString(deltaFull, startX, centerY, 4);
 
-        // High quality vector arrow inside badge
-        drawTrendArrow(w / 2 + 32, 180, cgm.trend, deltaCol, 14);
+        // Vector arrow positioned right after delta
+        int arrowCenterX = startX + textW + gap + (arrowW / 2);
+        drawTrendArrow(arrowCenterX, centerY, cgm.trend, deltaCol, arrowSize);
 
-        _spr.setTextDatum(TC_DATUM);
+        // Age / Freshness label centered at y = 216
+        _spr.setTextDatum(MC_DATUM);
         _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
         _spr.setTextFont(2);
-        _spr.drawString(ageStr, w / 2, 222);
+        _spr.drawString(ageStr, w / 2, 216);
     }
     // -----------------------------------------------------------
     // View 3: CGM Graph Full Screen (Vertical)
     // -----------------------------------------------------------
     else if (_cgmViewMode == CgmViewMode::GraphFullScreen) {
         // Quick summary line at top of graph: Glucose, delta, and graphic arrow
+        // Measured and dynamically centered so it never cuts out or overflows screen boundaries
+        _spr.setTextFont(2);
+        String summaryText = String(cgm.value) + " mg/dL (" + deltaStr + ")";
+        int textW = _spr.textWidth(summaryText);
+        int arrowSize = 6;
+        int arrowW = arrowSize * 2;
+        int gap = 6;
+        int totalW = textW + gap + arrowW;
+        int startX = (w - totalW) / 2;
+        int summaryY = 38;
+
+        _spr.setTextDatum(ML_DATUM);
         _spr.setTextColor(valColor, COLOR_BG);
-        _spr.setTextDatum(MR_DATUM);
-        _spr.setFreeFont(&FreeSansBold9pt7b);
-        _spr.drawString(String(cgm.value) + " mg/dL (" + deltaStr + ")", w / 2 + 15, 38);
-        drawTrendArrow(w / 2 + 32, 38, cgm.trend, valColor, 8);
+        _spr.drawString(summaryText, startX, summaryY);
+        drawTrendArrow(startX + textW + gap + (arrowW / 2), summaryY, cgm.trend, valColor, arrowSize);
 
         int gx = 10;
         int gy = 62;
@@ -1146,20 +1239,16 @@ void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std:
 }
 
 void AppManager::drawCGMHorizontal(int w, int h, const CgmReading& cgm, const std::vector<int>& history, int syncSecRemaining) {
-    // 1. Top status line: "Wifi: OK/FAIL" (left) & "Sync in: [sec]" (center) & "Rotate : B2" (top right)
-    _spr.setTextFont(2);
-    _spr.setTextDatum(TL_DATUM);
-    if (WiFi.status() == WL_CONNECTED) {
-        _spr.setTextColor(COLOR_GREEN, COLOR_BG);
-        _spr.drawString("Wifi: OK", 8, 6);
-    } else {
-        _spr.setTextColor(COLOR_RED, COLOR_BG);
-        _spr.drawString("Wifi: FAIL", 8, 6);
-    }
+    // 1. Top status line: WiFi icon (left), Rotate : B2 (top right)
+    drawWiFiIcon(8, 4, 14);
 
-    _spr.setTextDatum(TC_DATUM);
-    _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
-    _spr.drawString("Sync: " + String(syncSecRemaining) + "s", w / 2 - 20, 6);
+    // Sync countdown only in Views 1 & 2 (in View 3 it would crowd the header)
+    if (_cgmViewMode != CgmViewMode::GraphFullScreen) {
+        _spr.setTextFont(2);
+        _spr.setTextDatum(TC_DATUM);
+        _spr.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+        _spr.drawString("Sync: " + String(syncSecRemaining) + "s", w / 2 - 20, 6);
+    }
 
     // Top Right: B2 (Rotate) next to physical IO14 button
     _spr.setTextDatum(TR_DATUM);
@@ -1268,10 +1357,24 @@ void AppManager::drawCGMHorizontal(int w, int h, const CgmReading& cgm, const st
     // View 2: CGM Value Big Full Screen (Horizontal)
     // -----------------------------------------------------------
     else if (_cgmViewMode == CgmViewMode::ValueFullScreen) {
-        // Big Glucose Reading on left
+        // Horizontal (320x170): Dynamically center the glucose number + pill as a single balanced unit
+        String valStr = String(cgm.value);
+        _spr.setTextFont(8);
+        int valW = _spr.textWidth(valStr);
+
+        int pillW = 112;
+        int pillH = 46;
+        int gap = 20; // Crisp, generous gap separating the value from the pill
+
+        int totalGroupW = valW + gap + pillW;
+        int groupStartX = (w - totalGroupW) / 2;
+        int centerY = (h / 2) - 4;
+
+        // Big Glucose Reading (Left side of the centered group)
+        int valCenterX = groupStartX + (valW / 2);
         _spr.setTextColor(valColor, COLOR_BG);
         _spr.setTextDatum(MC_DATUM);
-        _spr.drawString(String(cgm.value), w / 2 - 50, h / 2 - 5, 8); // Huge font 8
+        _spr.drawString(valStr, valCenterX, centerY, 8); // Huge Font 8
 
         // Prominent Change with explicit +/- badge and vector trend arrow
         uint16_t deltaCol = COLOR_GREEN;
@@ -1282,17 +1385,29 @@ void AppManager::drawCGMHorizontal(int w, int h, const CgmReading& cgm, const st
         }
         String deltaFull = (cgm.delta > 0 ? "+" : "") + String(cgm.delta);
 
-        // Right side badge for Delta & Vector Direction
-        int bx = w / 2 + 25;
-        int by = h / 2 - 45;
-        _spr.fillRoundRect(bx, by, 115, 68, 8, COLOR_CARD_BG);
-        _spr.drawRoundRect(bx, by, 115, 68, 8, 0x39E7);
+        // Right side pill badge: positioned right after gap
+        int bx = groupStartX + valW + gap;
+        int by = centerY - (pillH / 2);
+        _spr.fillRoundRect(bx, by, pillW, pillH, pillH / 2, COLOR_CARD_BG);
+        _spr.drawRoundRect(bx, by, pillW, pillH, pillH / 2, 0x39E7);
 
-        _spr.setTextDatum(MR_DATUM);
+        // Calculate text width for Font 4 and position vector arrow cleanly inside pill
+        _spr.setTextFont(4);
+        int textW = _spr.textWidth(deltaFull);
+        int arrowSize = 10;
+        int arrowW = arrowSize * 2;
+        int pillInnerGap = 8;
+        int totalContentW = textW + pillInnerGap + arrowW;
+        int startX = bx + (pillW - totalContentW) / 2;
+
+        // Delta text
+        _spr.setTextDatum(ML_DATUM);
         _spr.setTextColor(deltaCol, COLOR_CARD_BG);
-        _spr.drawString(deltaFull, bx + 55, by + 34, 6); // Large font 6
+        _spr.drawString(deltaFull, startX, centerY, 4);
 
-        drawTrendArrow(bx + 85, by + 34, cgm.trend, deltaCol, 14);
+        // Vector arrow positioned right next to delta text inside pill
+        int arrowCenterX = startX + textW + pillInnerGap + (arrowW / 2);
+        drawTrendArrow(arrowCenterX, centerY, cgm.trend, deltaCol, arrowSize);
 
         // Bottom sub-info
         _spr.setTextDatum(BC_DATUM);
@@ -1304,12 +1419,23 @@ void AppManager::drawCGMHorizontal(int w, int h, const CgmReading& cgm, const st
     // View 3: CGM Graph Full Screen (Horizontal)
     // -----------------------------------------------------------
     else if (_cgmViewMode == CgmViewMode::GraphFullScreen) {
-        // Subtle stat banner at top
+        // Stat banner at top centered cleanly between WiFi icon (x=8..22) and Rotate : B2 (x=240..312)
+        _spr.setTextFont(2);
+        String summaryText = String(cgm.value) + " mg/dL (" + deltaStr + ")";
+        int textW = _spr.textWidth(summaryText);
+        int arrowSize = 6;
+        int arrowW = arrowSize * 2;
+        int gap = 6;
+        int totalW = textW + gap + arrowW;
+        // Center within available space (x: 25 to 240, center is ~132)
+        int centerAreaX = 132;
+        int startX = centerAreaX - (totalW / 2);
+        int summaryY = 12;
+
+        _spr.setTextDatum(ML_DATUM);
         _spr.setTextColor(valColor, COLOR_BG);
-        _spr.setTextDatum(MR_DATUM);
-        _spr.setFreeFont(&FreeSansBold9pt7b);
-        _spr.drawString(String(cgm.value) + " mg/dL (" + deltaStr + ")", w / 2 + 15, 6);
-        drawTrendArrow(w / 2 + 30, 6, cgm.trend, valColor, 8);
+        _spr.drawString(summaryText, startX, summaryY);
+        drawTrendArrow(startX + textW + gap + (arrowW / 2), summaryY, cgm.trend, valColor, arrowSize);
 
         int gx = 8;
         int gy = 26;
@@ -1351,6 +1477,9 @@ void AppManager::drawCGMHorizontal(int w, int h, const CgmReading& cgm, const st
 
 void AppManager::drawSettings() {
     _spr.fillSprite(COLOR_BG);
+
+    // Status Bar: WiFi Icon at top-left
+    drawWiFiIcon(8, 6, 14);
 
     // Header
     _spr.setTextColor(COLOR_ACCENT, COLOR_BG);
