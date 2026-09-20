@@ -109,12 +109,12 @@ pio device monitor -b 115200
 
 ## Firmware Backup & Restore
 
-A clean backup of the original 16MB factory firmware is preserved in `backup/firmware_backup_original.bin`.
+A clean standalone restore point of this release is packaged in `backup/firmware_backup_clean.bin` (contains bootloader, partition table, and full application binary, zero personal credentials or Wi-Fi data):
 
 ```bash
-# Backup full 16MB flash image:
-./backup_firmware.sh
+# Restore firmware at any time:
+./restore_firmware.sh backup/firmware_backup_clean.bin
 
-# Restore factory firmware at any time:
-./restore_firmware.sh backup/firmware_backup_original.bin
+# Or create a full flash backup of your current device state:
+./backup_firmware.sh
 ```

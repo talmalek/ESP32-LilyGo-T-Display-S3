@@ -2,6 +2,6 @@
 .vscode/
 .idea/
 *.bin
-!backup/firmware_backup_original.bin
+!backup/firmware_backup_clean.bin
 .DS_Store
 *.pyc
