@@ -61,6 +61,7 @@ public:
     ClockFaceMode getClockFaceMode() const { return _clockFaceMode; }
     bool isCgmHorizontal() const { return _cgmHorizontal; }
     bool isClockHorizontal() const { return _clockHorizontal; }
+    TFT_eSprite& getSprite() { return _spr; }
 
 private:
     AppManager() = default;
@@ -82,6 +83,7 @@ private:
     void drawWiFiPortalScreen();
     void drawTrendArrow(int cx, int cy, CgmTrend trend, uint16_t color, int size = 10);
     void drawWiFiIcon(int x, int y, int size = 14);
+    void drawGraphAreaFill(int gx, int gy, int gw, int gh, const std::vector<int>& history, std::function<int(int)> mapY);
 
     // Background tasks
     void updateTime();

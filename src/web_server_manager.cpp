@@ -119,6 +119,30 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
+    <!-- Live Physical Screen Mirror & Capture -->
+    <div class="card">
+      <h2>
+        <span>📷 Live Screen Mirror</span>
+        <div style="display:flex; gap:0.5rem;">
+          <button onclick="refreshScreenMirror()" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background:#0284c7;">🔄 Snapshot</button>
+          <a id="downloadScreenshotBtn" href="/api/screenshot" download="screen.bmp" target="_blank" style="text-decoration:none;">
+            <button type="button" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background:#334155;">⬇️ Download BMP</button>
+          </a>
+        </div>
+      </h2>
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0e17; border-radius:10px; border:1px solid var(--card-border); padding:1.25rem; min-height:220px;">
+        <div style="position:relative; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border-radius:8px; overflow:hidden; border:2px solid #38bdf8; line-height:0;">
+          <img id="liveScreenImg" src="/api/screenshot" alt="Device Framebuffer" style="display:block; max-width:100%; height:auto; background:#000;" onload="onScreenLoaded()" onerror="onScreenError()" />
+        </div>
+        <div style="display:flex; justify-content:space-between; width:100%; max-width:320px; margin-top:0.75rem; font-size:0.75rem; color:var(--muted);">
+          <span id="screenDimensions">170 x 320 px (Direct Framebuffer)</span>
+          <label style="display:flex; align-items:center; gap:0.35rem; cursor:pointer;">
+            <input type="checkbox" id="autoRefreshMirror" checked onchange="toggleAutoMirror(this.checked)"> Auto-refresh (2s)
+          </label>
+        </div>
+      </div>
+    </div>
+
     <!-- Remote Screen Control with View Switching -->
     <div class="card">
       <h2>🎮 Remote Screen Control</h2>
@@ -299,7 +323,15 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
       const yLow = mapY(low);
       const yHigh = mapY(high);
 
-      let content = '';
+      let content = `
+        <defs>
+          <linearGradient id="cgmAreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#22c55e" stop-opacity="0.38" />
+            <stop offset="60%" stop-color="#22c55e" stop-opacity="0.15" />
+            <stop offset="100%" stop-color="#22c55e" stop-opacity="0.02" />
+          </linearGradient>
+        </defs>
+      `;
 
       // Grid guides & background areas
       // In-range shaded zone
@@ -316,6 +348,7 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
       const stepX = history.length > 1 ? chartW / (history.length - 1) : chartW / 2;
       let pathD = '';
       let pointsSvg = '';
+      const baselineY = padT + chartH;
 
       history.forEach((val, idx) => {
         const px = padL + idx * stepX;
@@ -330,7 +363,15 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
         pointsSvg += `<circle cx="${px}" cy="${py}" r="3.5" fill="${ptCol}" stroke="#0f172a" stroke-width="1" />`;
       });
 
-      content += `<path d="${pathD}" fill="none" stroke="#94a3b8" stroke-width="2" opacity="0.8" />`;
+      // Translucent green gradient area fill under the curve
+      if (history.length > 1) {
+        const firstX = padL;
+        const lastX = padL + (history.length - 1) * stepX;
+        const areaD = `${pathD} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
+        content += `<path d="${areaD}" fill="url(#cgmAreaGrad)" />`;
+      }
+
+      content += `<path d="${pathD}" fill="none" stroke="#22c55e" stroke-width="2.5" opacity="0.9" />`;
       content += pointsSvg;
 
       // X-axis baseline
@@ -445,8 +486,45 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
       }
     }
 
+    // Live Screen Mirror handler
+    let mirrorInterval = null;
+    let mirrorPending = false;
+
+    function refreshScreenMirror() {
+      if (mirrorPending) return;
+      mirrorPending = true;
+      const img = document.getElementById('liveScreenImg');
+      const timestamp = new Date().getTime();
+      img.src = '/api/screenshot?t=' + timestamp;
+      const dlBtn = document.getElementById('downloadScreenshotBtn');
+      if (dlBtn) dlBtn.href = '/api/screenshot?t=' + timestamp;
+    }
+
+    function onScreenLoaded() {
+      mirrorPending = false;
+      const img = document.getElementById('liveScreenImg');
+      if (img.naturalWidth && img.naturalHeight) {
+        document.getElementById('screenDimensions').innerText = img.naturalWidth + ' x ' + img.naturalHeight + ' px (Active Framebuffer)';
+      }
+    }
+
+    function onScreenError() {
+      mirrorPending = false;
+    }
+
+    function toggleAutoMirror(enabled) {
+      if (mirrorInterval) {
+        clearInterval(mirrorInterval);
+        mirrorInterval = null;
+      }
+      if (enabled) {
+        mirrorInterval = setInterval(refreshScreenMirror, 2000);
+      }
+    }
+
     loadStatus();
     setInterval(loadStatus, 3000);
+    toggleAutoMirror(true);
   </script>
 </body>
 </html>
@@ -473,6 +551,7 @@ void WebServerManager::setupRoutes() {
     _server.on("/api/status", HTTP_ANY, [this]() { handleGetStatus(); });
     _server.on("/api/settings", HTTP_POST, [this]() { handleSaveSettings(); });
     _server.on("/api/control", HTTP_POST, [this]() { handleControl(); });
+    _server.on("/api/screenshot", HTTP_GET, [this]() { handleScreenshot(); });
 
     // Fallback handler for preflight and unknown routes
     _server.onNotFound([this]() {
@@ -655,4 +734,86 @@ void WebServerManager::handleControl() {
     }
 
     _server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Command executed\"}");
+}
+
+void WebServerManager::handleScreenshot() {
+    TFT_eSprite& spr = AppManager::getInstance().getSprite();
+    int w = spr.width();
+    int h = spr.height();
+
+    if (w <= 0 || h <= 0) {
+        _server.send(500, "text/plain", "Display buffer not ready");
+        return;
+    }
+
+    // BMP rows must be padded to multiples of 4 bytes
+    int rowBytes = (w * 3 + 3) & ~3;
+    uint32_t imageSize = (uint32_t)rowBytes * h;
+    uint32_t fileSize = 54 + imageSize;
+
+    uint8_t bmpHeader[54] = {
+        'B', 'M',
+        (uint8_t)(fileSize & 0xFF),
+        (uint8_t)((fileSize >> 8) & 0xFF),
+        (uint8_t)((fileSize >> 16) & 0xFF),
+        (uint8_t)((fileSize >> 24) & 0xFF),
+        0, 0, 0, 0, // reserved
+        54, 0, 0, 0, // pixel offset
+        40, 0, 0, 0, // DIB header size
+        (uint8_t)(w & 0xFF),
+        (uint8_t)((w >> 8) & 0xFF),
+        (uint8_t)((w >> 16) & 0xFF),
+        (uint8_t)((w >> 24) & 0xFF),
+        (uint8_t)(h & 0xFF),
+        (uint8_t)((h >> 8) & 0xFF),
+        (uint8_t)((h >> 16) & 0xFF),
+        (uint8_t)((h >> 24) & 0xFF),
+        1, 0,       // color planes
+        24, 0,      // bits per pixel
+        0, 0, 0, 0, // BI_RGB (uncompressed)
+        (uint8_t)(imageSize & 0xFF),
+        (uint8_t)((imageSize >> 8) & 0xFF),
+        (uint8_t)((imageSize >> 16) & 0xFF),
+        (uint8_t)((imageSize >> 24) & 0xFF),
+        0x13, 0x0B, 0, 0, // horiz resolution (~72 DPI)
+        0x13, 0x0B, 0, 0, // vert resolution (~72 DPI)
+        0, 0, 0, 0,
+        0, 0, 0, 0
+    };
+
+    WiFiClient client = _server.client();
+    _server.sendHeader("Access-Control-Allow-Origin", "*");
+    _server.sendHeader("Access-Control-Allow-Private-Network", "true");
+    _server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    _server.sendHeader("Content-Disposition", "inline; filename=\"screenshot.bmp\"");
+    _server.setContentLength(fileSize);
+    _server.send(200, "image/bmp", "");
+
+    // 1. Write header
+    client.write(bmpHeader, 54);
+
+    // 2. Stream BMP pixel rows (BMP stores bottom row to top row)
+    uint8_t* rowBuffer = (uint8_t*)malloc(rowBytes);
+    if (!rowBuffer) {
+        return;
+    }
+
+    for (int y = h - 1; y >= 0; y--) {
+        memset(rowBuffer, 0, rowBytes);
+        int bufIdx = 0;
+        for (int x = 0; x < w; x++) {
+            uint16_t color = spr.readPixel(x, y);
+            // RGB565 to BGR888 for BMP format
+            uint8_t r = ((color >> 11) & 0x1F) * 255 / 31;
+            uint8_t g = ((color >> 5) & 0x3F) * 255 / 63;
+            uint8_t b = (color & 0x1F) * 255 / 31;
+
+            rowBuffer[bufIdx++] = b;
+            rowBuffer[bufIdx++] = g;
+            rowBuffer[bufIdx++] = r;
+        }
+        client.write(rowBuffer, rowBytes);
+    }
+
+    free(rowBuffer);
 }

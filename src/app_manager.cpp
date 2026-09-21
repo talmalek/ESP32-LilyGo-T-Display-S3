@@ -989,6 +989,38 @@ void AppManager::drawWiFiIcon(int x, int y, int size) {
     }
 }
 
+void AppManager::drawGraphAreaFill(int gx, int gy, int gw, int gh, const std::vector<int>& history, std::function<int(int)> mapY) {
+    if (history.size() < 2) return;
+    int bottomY = gy + gh - 2;
+    float stepX = (float)(gw - 16) / (float)(history.size() - 1);
+
+    for (size_t i = 0; i < history.size() - 1; i++) {
+        int x1 = gx + 8 + (int)(i * stepX);
+        int x2 = gx + 8 + (int)((i + 1) * stepX);
+        int y1 = mapY(history[i]);
+        int y2 = mapY(history[i + 1]);
+
+        for (int x = x1; x <= x2; x++) {
+            float t = (x2 == x1) ? 0.0f : (float)(x - x1) / (float)(x2 - x1);
+            int curY = y1 + (int)(t * (y2 - y1));
+            int colH = bottomY - curY;
+            if (colH <= 0) continue;
+
+            for (int y = curY + 1; y <= bottomY; y++) {
+                float v = (float)(y - curY) / (float)colH; // 0 at curve, 1 at bottom
+                // High-visibility translucent gradient:
+                // Starts bright neon/emerald green (g=160, b=50) right below the curve
+                // Fades smoothly to deep forest green (g=32, b=10) near the bottom
+                uint8_t g = (uint8_t)(160.0f * (1.0f - v * 0.80f));
+                uint8_t b = (uint8_t)(50.0f * (1.0f - v * 0.80f));
+                uint8_t r = (uint8_t)(8.0f * (1.0f - v));
+                uint16_t c = _tft.color565(r, g, b);
+                _spr.drawPixel(x, y, c);
+            }
+        }
+    }
+}
+
 void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std::vector<int>& history, int syncSecRemaining) {
     // 1. Top status line: WiFi signal strength fan icon (left) & (in View 2 & 3) "Sync in: [sec]" (right)
     drawWiFiIcon(8, 4, 14);
@@ -1099,6 +1131,7 @@ void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std:
             int cl = constrain(val, 40, 300);
             return gy + gh - (int)((cl - 40) * (float)gh / 260.0f);
         };
+        drawGraphAreaFill(gx, gy, gw, gh, history, mapY);
         _spr.drawFastHLine(gx + 2, mapY(tgtLow), gw - 4, 0x8000);
         _spr.drawFastHLine(gx + 2, mapY(tgtHigh), gw - 4, 0x8400);
 
@@ -1108,12 +1141,13 @@ void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std:
                 int px = gx + 8 + (int)(i * stepX);
                 int py = mapY(history[i]);
                 uint16_t ptColor = (history[i] < tgtLow || history[i] > 250) ? COLOR_RED : (history[i] > tgtHigh ? COLOR_YELLOW : COLOR_GREEN);
-                _spr.fillCircle(px, py, 2, ptColor);
                 if (i > 0) {
                     int prevPx = gx + 8 + (int)((i - 1) * stepX);
                     int prevPy = mapY(history[i - 1]);
-                    _spr.drawLine(prevPx, prevPy, px, py, COLOR_TEXT_MUTED);
+                    _spr.drawLine(prevPx, prevPy, px, py, COLOR_GREEN);
+                    _spr.drawLine(prevPx, prevPy - 1, px, py - 1, COLOR_GREEN);
                 }
+                _spr.fillCircle(px, py, 3, ptColor);
             }
         }
     }
@@ -1211,6 +1245,7 @@ void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std:
             int cl = constrain(val, 40, 300);
             return gy + gh - (int)((cl - 40) * (float)gh / 260.0f);
         };
+        drawGraphAreaFill(gx, gy, gw, gh, history, mapY);
         _spr.drawFastHLine(gx + 2, mapY(tgtLow), gw - 4, 0x8000);
         _spr.drawFastHLine(gx + 2, mapY(tgtHigh), gw - 4, 0x8400);
 
@@ -1226,12 +1261,13 @@ void AppManager::drawCGMVertical(int w, int h, const CgmReading& cgm, const std:
                 int px = gx + 8 + (int)(i * stepX);
                 int py = mapY(history[i]);
                 uint16_t ptColor = (history[i] < tgtLow || history[i] > 250) ? COLOR_RED : (history[i] > tgtHigh ? COLOR_YELLOW : COLOR_GREEN);
-                _spr.fillCircle(px, py, 3, ptColor);
                 if (i > 0) {
                     int prevPx = gx + 8 + (int)((i - 1) * stepX);
                     int prevPy = mapY(history[i - 1]);
-                    _spr.drawLine(prevPx, prevPy, px, py, COLOR_TEXT_MUTED);
+                    _spr.drawLine(prevPx, prevPy, px, py, COLOR_GREEN);
+                    _spr.drawLine(prevPx, prevPy - 1, px, py - 1, COLOR_GREEN);
                 }
+                _spr.fillCircle(px, py, 3, ptColor);
             }
         }
     }
@@ -1335,6 +1371,7 @@ void AppManager::drawCGMHorizontal(int w, int h, const CgmReading& cgm, const st
             int cl = constrain(val, 40, 300);
             return gy + gh - (int)((cl - 40) * (float)gh / 260.0f);
         };
+        drawGraphAreaFill(gx, gy, gw, gh, history, mapY);
         _spr.drawFastHLine(gx + 2, mapY(tgtLow), gw - 4, 0x8000);
         _spr.drawFastHLine(gx + 2, mapY(tgtHigh), gw - 4, 0x8400);
 
@@ -1344,12 +1381,13 @@ void AppManager::drawCGMHorizontal(int w, int h, const CgmReading& cgm, const st
                 int px = gx + 8 + (int)(i * stepX);
                 int py = mapY(history[i]);
                 uint16_t ptColor = (history[i] < tgtLow || history[i] > 250) ? COLOR_RED : (history[i] > tgtHigh ? COLOR_YELLOW : COLOR_GREEN);
-                _spr.fillCircle(px, py, 2, ptColor);
                 if (i > 0) {
                     int prevPx = gx + 8 + (int)((i - 1) * stepX);
                     int prevPy = mapY(history[i - 1]);
-                    _spr.drawLine(prevPx, prevPy, px, py, COLOR_TEXT_MUTED);
+                    _spr.drawLine(prevPx, prevPy, px, py, COLOR_GREEN);
+                    _spr.drawLine(prevPx, prevPy - 1, px, py - 1, COLOR_GREEN);
                 }
+                _spr.fillCircle(px, py, 2, ptColor);
             }
         }
     }
@@ -1449,6 +1487,7 @@ void AppManager::drawCGMHorizontal(int w, int h, const CgmReading& cgm, const st
             int cl = constrain(val, 40, 300);
             return gy + gh - (int)((cl - 40) * (float)gh / 260.0f);
         };
+        drawGraphAreaFill(gx, gy, gw, gh, history, mapY);
         _spr.drawFastHLine(gx + 2, mapY(tgtLow), gw - 4, 0x8000);
         _spr.drawFastHLine(gx + 2, mapY(tgtHigh), gw - 4, 0x8400);
 
@@ -1463,12 +1502,13 @@ void AppManager::drawCGMHorizontal(int w, int h, const CgmReading& cgm, const st
                 int px = gx + 8 + (int)(i * stepX);
                 int py = mapY(history[i]);
                 uint16_t ptColor = (history[i] < tgtLow || history[i] > 250) ? COLOR_RED : (history[i] > tgtHigh ? COLOR_YELLOW : COLOR_GREEN);
-                _spr.fillCircle(px, py, 2, ptColor);
                 if (i > 0) {
                     int prevPx = gx + 8 + (int)((i - 1) * stepX);
                     int prevPy = mapY(history[i - 1]);
-                    _spr.drawLine(prevPx, prevPy, px, py, COLOR_TEXT_MUTED);
+                    _spr.drawLine(prevPx, prevPy, px, py, COLOR_GREEN);
+                    _spr.drawLine(prevPx, prevPy - 1, px, py - 1, COLOR_GREEN);
                 }
+                _spr.fillCircle(px, py, 2, ptColor);
             }
         }
     }

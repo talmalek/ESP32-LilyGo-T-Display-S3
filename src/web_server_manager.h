@@ -21,6 +21,7 @@ private:
     void handleGetStatus();
     void handleSaveSettings();
     void handleControl();
+    void handleScreenshot();
 
     WebServer _server;
     bool _running = false;

@@ -1,20 +1,87 @@
-# LilyGO T-Display-S3 Multi-App OS (Clock, CGM & Settings)
+# 📟 LilyGO T-Display-S3 Multi-App OS
 
-A modular multi-app operating system firmware for the **LilyGO T-Display-S3** (ESP32-S3, 1.9" ST7789 170x320 IPS LCD, 16MB Flash, 8MB PSRAM).
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-ESP32--S3-blue.svg?style=for-the-badge&logo=espressif" alt="ESP32-S3" />
+  <img src="https://img.shields.io/badge/Display-ST7789%20170x320%20IPS-orange.svg?style=for-the-badge" alt="ST7789" />
+  <img src="https://img.shields.io/badge/Framework-Arduino%20%2F%20PlatformIO-00979D.svg?style=for-the-badge&logo=arduino" alt="PlatformIO" />
+  <img src="https://img.shields.io/badge/Dexcom%20API-Direct%20Share-22c55e.svg?style=for-the-badge" alt="Dexcom" />
+</p>
 
-Features interactive on-device controls, multi-orientation display support, multiple watch faces, Dexcom CGM views with vector trend arrows, an onboard Wi-Fi captive setup portal, and an embedded responsive Web Dashboard with live remote control and real-time SVG glucose graphing.
+<p align="center">
+  A modular multi-app operating system firmware for the <b>LilyGO T-Display-S3</b> (1.9" ST7789 170x320 IPS LCD, 16MB Flash, 8MB PSRAM).<br/>
+  Features double-buffered PSRAM rendering, multi-orientation display support, multiple watch faces, live Dexcom CGM tracking with vector trend arrows, an onboard captive setup portal, and an embedded web dashboard with real-time screen mirroring.
+</p>
+
+<p align="center">
+  <a href="#-quick-navigation"><b>Quick Navigation</b></a> &bull;
+  <a href="#-device-screenshots-live-hardware-capture"><b>Screenshots</b></a> &bull;
+  <a href="#-key-features"><b>Features</b></a> &bull;
+  <a href="#-hardware-controls"><b>Controls</b></a> &bull;
+  <a href="#-pinout--hardware-specifications"><b>Pinout</b></a> &bull;
+  <a href="#-build--flash"><b>Build & Flash</b></a>
+</p>
 
 ---
 
-## Key Features
+## 🧭 Quick Navigation
+
+| Section | Description |
+| :--- | :--- |
+| [📱 **Device Screenshots**](#-device-screenshots-live-hardware-capture) | Pixel-perfect hardware captures of all primary application screens |
+| [🚀 **App Launcher**](#1-app-launcher) | Interactive main menu, PSRAM double-buffering, and status header |
+| [⏰ **Clock Application**](#2-clock-app-multiple-watch-faces--orientation) | 3 dynamic watch faces, SNTP network sync, and multi-orientation layouts |
+| [🩸 **Dexcom CGM App**](#3-dexcom-cgm-app-3-view-modes-orientation--vector-trends) | Live blood glucose monitoring, vector trend arrows, and gradient history curve |
+| [⚙️ **Settings & Wi-Fi AP**](#4-settings--wi-fi-setup-ap-mode) | Onboard captive portal setup, network status, and live RSSI diagnostic |
+| [🌐 **Web Dashboard & Mirror**](#5-embedded-web-dashboard--live-screen-mirror) | Browser-based remote control, interactive SVG chart, and live screen mirror |
+| [🎮 **Hardware Controls**](#-hardware-controls) | Button mappings and chord exit shortcuts across all states |
+| [🔌 **Hardware Pinout**](#-pinout--hardware-specifications) | ST7789 8-bit parallel bus, backlight PWM, and power pin table |
+| [🛠️ **Build & Flash Guide**](#-build--flash) | PlatformIO compilation, flashing commands, and firmware backup/restore |
+
+---
+
+## 📱 Device Screenshots (Live Hardware Capture)
+
+<table align="center" width="100%">
+  <thead>
+    <tr align="center">
+      <th width="25%"><b>🚀 App Launcher</b></th>
+      <th width="25%"><b>⏰ Clock (Modern Face)</b></th>
+      <th width="25%"><b>🩸 Dexcom CGM (Live)</b></th>
+      <th width="25%"><b>⚙️ Settings & Info</b></th>
+    </tr>
+  </thead>
+  <tbody align="center">
+    <tr>
+      <td><a href="#1-app-launcher"><img src="docs/images/screenshot_launcher.jpg" width="100%" alt="Launcher Menu" /></a></td>
+      <td><a href="#2-clock-app-multiple-watch-faces--orientation"><img src="docs/images/screenshot_clock.jpg" width="100%" alt="Clock App" /></a></td>
+      <td><a href="#3-dexcom-cgm-app-3-view-modes-orientation--vector-trends"><img src="docs/images/screenshot_cgm.jpg" width="100%" alt="Dexcom CGM App" /></a></td>
+      <td><a href="#4-settings--wi-fi-setup-ap-mode"><img src="docs/images/screenshot_settings.jpg" width="100%" alt="Settings App" /></a></td>
+    </tr>
+    <tr>
+      <td><em>Vertical card navigation with live Wi-Fi status</em></td>
+      <td><em>Digital readout, 60s progress bar & seconds card</em></td>
+      <td><em>Live 99 mg/dL reading, trend arrow & gradient history</em></td>
+      <td><em>Captive AP launcher & device diagnostics</em></td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## ⚡ Key Features
 
 ### 1. App Launcher
+<img align="right" width="130" src="docs/images/screenshot_launcher.jpg" alt="Launcher Screen" />
+
 - Fast interactive vertical menu formatted for the 170x320 IPS display.
 - Double-buffered, flicker-free rendering via PSRAM sprites (`TFT_eSprite`).
 - Direct navigation with hardware buttons and dual-button chord exit.
 - Live Wi-Fi signal strength fan icon in status bar.
+<br clear="right"/>
 
 ### 2. Clock App (Multiple Watch Faces & Orientation)
+<img align="right" width="130" src="docs/images/screenshot_clock.jpg" alt="Clock Screen" />
+
 - **Automatic SNTP Sync**: Synchronizes with network time servers (`pool.ntp.org`, `time.google.com`).
 - **Live Status Header**: Graphical Wi-Fi fan icon displaying real-time RSSI signal strength and watch face badge.
 - **3 Dynamic Watch Faces** (Toggle with **Button 1**):
@@ -24,8 +91,11 @@ Features interactive on-device controls, multi-orientation display support, mult
 - **Orientation Toggle** (Toggle with **Button 2**):
   - **Vertical Mode** (170x320): Vertical stacked layout with bottom seconds card and status badges.
   - **Horizontal / Landscape Mode** (320x170): Split-screen with time/date on the left and a large seconds card on the right.
+<br clear="right"/>
 
 ### 3. Dexcom CGM App (3 View Modes, Orientation & Vector Trends)
+<img align="right" width="130" src="docs/images/screenshot_cgm.jpg" alt="CGM Screen" />
+
 - **Direct Dexcom Share API Integration**: Connects securely with both US (`share1.dexcom.com`) and International (`shareous1.dexcom.com`) servers.
 - **Dynamic Graphical Wi-Fi Signal Strength Fan Icon**:
   - Live RSSI-based 3-arc icon across all screens: Green (Strong > -60 dBm), Cyan (Medium -75 to -60 dBm), Yellow (Weak < -75 dBm), and Red Disconnected indicator.
@@ -39,8 +109,11 @@ Features interactive on-device controls, multi-orientation display support, mult
 - **Orientation Toggle** (Toggle with **Button 2**):
   - Seamlessly switch between Vertical (170x320) and Landscape (320x170) widescreen modes without header or status overlaps.
 - **Decoupled Background Polling**: FreeRTOS background task with automatic 60-second polling and live on-screen sync countdown.
+<br clear="right"/>
 
 ### 4. Settings & Wi-Fi Setup AP Mode
+<img align="right" width="130" src="docs/images/screenshot_settings.jpg" alt="Settings Screen" />
+
 - **Clean Settings Interface**:
   - **Set Device (AP)**: One-click launch of the onboard captive configuration portal.
   - **Information Card**: Displays live IP address, Dexcom server, active account, timezone offset (`GMT±X`), and Wi-Fi RSSI signal strength.
@@ -48,20 +121,23 @@ Features interactive on-device controls, multi-orientation display support, mult
 - **Dedicated AP Setup Screen**:
   - Clear, centered instructions indicating AP Mode.
   - Explicit connection details (`T-Display AP` SSID and `192.168.4.1` web setup address).
+<br clear="right"/>
 
-### 5. Embedded Web Dashboard & REST API
-- Built-in asynchronous HTTP server accessible from any browser on the local Wi-Fi network.
+### 5. Embedded Web Dashboard & Live Screen Mirror
+- Built-in asynchronous HTTP server accessible from any browser on your local network (e.g. `http://<device-ip>/`).
+- **Live Physical Screen Mirror**:
+  - Automatically mirrors the physical ST7789 display buffer in real time directly inside the browser interface.
+  - Snapshot button and one-click BMP/JPG screenshot download (`/api/screenshot`).
 - **Live Remote Screen Control**:
-  - Switch active screens: **Launcher**, **Clock**, **Dexcom CGM**, or **Settings**.
-  - Clock controls: Switch between Modern, Bold, and Minimal watch faces; toggle orientation.
-  - CGM controls: Switch between Value+Graph, Full Value, and Full Graph view modes; toggle orientation.
-  - Real-time display brightness slider (0–255).
+  - Remotely switch screens between **Launcher**, **Clock**, **Dexcom CGM**, and **Settings**.
+  - Cycle watch faces, toggle CGM view modes, and rotate orientations on the fly.
+  - Real-time display backlight brightness slider (20–255).
 - **Interactive SVG CGM Graph**:
   - Real-time vector glucose history visualization rendered directly in the browser with target low/high boundary lines.
-- **Settings Configuration**:
-  - Dexcom username, password, and server region.
+- **Settings & Preferences Configuration**:
+  - Update Dexcom account credentials and server region (US vs Non-US).
   - Target glucose limits (Low and High thresholds).
-  - Timezone offset selector (`-12` to `+12` UTC).
+  - Timezone offset selector (`-12` to `+12` UTC) with instantaneous SNTP re-sync.
   - 12h / 24h clock format toggle.
 
 ---
