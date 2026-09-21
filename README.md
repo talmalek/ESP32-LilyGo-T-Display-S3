@@ -140,9 +140,11 @@
   - Timezone offset selector (`-12` to `+12` UTC) with instantaneous SNTP re-sync.
   - 12h / 24h clock format toggle.
 
----
+## 🎮 Hardware Controls & Enclosure
 
-## Hardware Controls
+<p align="center">
+  <img src="docs/images/hardware_enclosure.jpg" width="480" alt="LilyGo T-Display-S3 Enclosure & Buttons" />
+</p>
 
 | Control | In Launcher | In Clock App | In Dexcom CGM App | In Settings Screen |
 | :--- | :--- | :--- | :--- | :--- |
@@ -152,7 +154,11 @@
 
 ---
 
-## Hardware Specifications & Pinout
+## 🔌 Hardware Specifications & Pinout Diagram
+
+<p align="center">
+  <img src="docs/images/hardware_pinout_diagram.jpg" width="720" alt="ESP32-S3R8 T-Display-S3 Pinout Diagram" />
+</p>
 
 | Function | Pin / GPIO | Description |
 | :--- | :--- | :--- |
