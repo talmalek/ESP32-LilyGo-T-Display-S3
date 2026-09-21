@@ -37,6 +37,30 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
     .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 12px; padding: 1.25rem; }
     .card h2 { font-size: 1.1rem; margin-bottom: 0.9rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem; justify-content: space-between; }
     
+    details.card { padding: 0; overflow: hidden; }
+    details.card summary {
+      padding: 1.1rem 1.25rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.2s;
+    }
+    details.card summary::-webkit-details-marker { display: none; }
+    details.card summary:hover { background: rgba(255,255,255,0.03); }
+    details.card summary .summary-left { display: flex; align-items: center; gap: 0.5rem; }
+    details.card summary .summary-toggle { font-size: 0.8rem; color: var(--muted); display: flex; align-items: center; gap: 0.35rem; font-weight: 500; }
+    details.card summary .summary-toggle::after { content: '▶'; font-size: 0.65rem; transition: transform 0.2s ease; display: inline-block; }
+    details[open].card summary .summary-toggle::after { transform: rotate(90deg); }
+    details[open].card summary { border-bottom: 1px solid var(--card-border); }
+    .card-content { padding: 1.25rem; }
+
+    
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
     .stat-box { background: rgba(0,0,0,0.25); border-radius: 8px; padding: 0.75rem; }
@@ -119,29 +143,35 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
-    <!-- Live Physical Screen Mirror & Capture -->
-    <div class="card">
-      <h2>
-        <span>📷 Live Screen Mirror</span>
-        <div style="display:flex; gap:0.5rem;">
+    <!-- Live Physical Screen Mirror & Capture (Collapsible, collapsed by default) -->
+    <details class="card" id="mirrorDetails" ontoggle="onMirrorToggle(this.open)">
+      <summary>
+        <div class="summary-left">
+          <span>📷 Live Screen Mirror</span>
+          <span class="badge" style="background:#334155; font-size:0.7rem;">Optional</span>
+        </div>
+        <div class="summary-toggle">Toggle View </div>
+      </summary>
+      <div class="card-content">
+        <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-bottom:0.75rem;">
           <button onclick="refreshScreenMirror()" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background:#0284c7;">🔄 Snapshot</button>
           <a id="downloadScreenshotBtn" href="/api/screenshot" download="screen.bmp" target="_blank" style="text-decoration:none;">
             <button type="button" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background:#334155;">⬇️ Download BMP</button>
           </a>
         </div>
-      </h2>
-      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0e17; border-radius:10px; border:1px solid var(--card-border); padding:1.25rem; min-height:220px;">
-        <div style="position:relative; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border-radius:8px; overflow:hidden; border:2px solid #38bdf8; line-height:0;">
-          <img id="liveScreenImg" src="/api/screenshot" alt="Device Framebuffer" style="display:block; max-width:100%; height:auto; background:#000;" onload="onScreenLoaded()" onerror="onScreenError()" />
-        </div>
-        <div style="display:flex; justify-content:space-between; width:100%; max-width:320px; margin-top:0.75rem; font-size:0.75rem; color:var(--muted);">
-          <span id="screenDimensions">170 x 320 px (Direct Framebuffer)</span>
-          <label style="display:flex; align-items:center; gap:0.35rem; cursor:pointer;">
-            <input type="checkbox" id="autoRefreshMirror" checked onchange="toggleAutoMirror(this.checked)"> Auto-refresh (2s)
-          </label>
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0e17; border-radius:10px; border:1px solid var(--card-border); padding:1.25rem; min-height:220px;">
+          <div style="position:relative; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border-radius:8px; overflow:hidden; border:2px solid #38bdf8; line-height:0;">
+            <img id="liveScreenImg" alt="Device Framebuffer" style="display:block; max-width:100%; height:auto; background:#000;" onload="onScreenLoaded()" onerror="onScreenError()" />
+          </div>
+          <div style="display:flex; justify-content:space-between; width:100%; max-width:320px; margin-top:0.75rem; font-size:0.75rem; color:var(--muted);">
+            <span id="screenDimensions">170 x 320 px (Direct Framebuffer)</span>
+            <label style="display:flex; align-items:center; gap:0.35rem; cursor:pointer;">
+              <input type="checkbox" id="autoRefreshMirror" onchange="toggleAutoMirror(this.checked)"> Auto-refresh (10s)
+            </label>
+          </div>
         </div>
       </div>
-    </div>
+    </details>
 
     <!-- Remote Screen Control with View Switching -->
     <div class="card">
@@ -191,78 +221,85 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
-    <!-- Settings Form (Dexcom, Target Ranges, Timezone -12 to +12) -->
-    <div class="card">
-      <h2>⚙️ Device & Glucose Target Ranges</h2>
-      <form id="settingsForm" onsubmit="saveSettings(event)">
-        <div class="form-group">
-          <label>Dexcom Username (Account Name)</label>
-          <input type="text" id="dexUser" name="dex_user" placeholder="username or email">
+    <!-- Settings Form (Dexcom, Target Ranges, Timezone -12 to +12) (Collapsible, collapsed by default) -->
+    <details class="card" id="settingsDetails">
+      <summary>
+        <div class="summary-left">
+          <span>⚙️ Device & Glucose Settings</span>
         </div>
-        <div class="form-group">
-          <label>Dexcom Password</label>
-          <input type="password" id="dexPass" name="dex_pass" placeholder="leave blank to keep unchanged">
-        </div>
-        
-        <div class="grid-2">
+        <div class="summary-toggle">Configure </div>
+      </summary>
+      <div class="card-content">
+        <form id="settingsForm" onsubmit="saveSettings(event)">
           <div class="form-group">
-            <label>Dexcom Server</label>
-            <select id="dexServer" name="dex_server">
-              <option value="NON-US">NON-US (International)</option>
-              <option value="US">US (United States)</option>
-            </select>
+            <label>Dexcom Username (Account Name)</label>
+            <input type="text" id="dexUser" name="dex_user" placeholder="username or email">
           </div>
           <div class="form-group">
-            <label>Timezone (UTC -12 to +12)</label>
-            <select id="tzOffset" name="tz_offset">
-              <option value="-12">UTC-12 (Baker Island)</option>
-              <option value="-11">UTC-11 (Samoa, Niue)</option>
-              <option value="-10">UTC-10 (Hawaii)</option>
-              <option value="-9">UTC-9 (Alaska)</option>
-              <option value="-8">UTC-8 (Pacific Time - US/Canada)</option>
-              <option value="-7">UTC-7 (Mountain Time - US/Canada)</option>
-              <option value="-6">UTC-6 (Central Time - US/Canada)</option>
-              <option value="-5">UTC-5 (Eastern Time - US/Canada)</option>
-              <option value="-4">UTC-4 (Atlantic Time, Santiago)</option>
-              <option value="-3">UTC-3 (Buenos Aires, Sao Paulo)</option>
-              <option value="-2">UTC-2 (Mid-Atlantic)</option>
-              <option value="-1">UTC-1 (Azores, Cape Verde)</option>
-              <option value="0">UTC+0 (London, Dublin, Lisbon)</option>
-              <option value="1">UTC+1 (Berlin, Paris, Rome, Madrid)</option>
-              <option value="2">UTC+2 (Jerusalem, Athens, Cairo, Helsinki)</option>
-              <option value="3">UTC+3 (Moscow, Riyadh, Istanbul, Nairobi)</option>
-              <option value="4">UTC+4 (Dubai, Baku, Tbilisi)</option>
-              <option value="5">UTC+5 (Karachi, Tashkent)</option>
-              <option value="6">UTC+6 (Dhaka, Almaty)</option>
-              <option value="7">UTC+7 (Bangkok, Jakarta, Hanoi)</option>
-              <option value="8">UTC+8 (Singapore, Beijing, Hong Kong)</option>
-              <option value="9">UTC+9 (Tokyo, Seoul)</option>
-              <option value="10">UTC+10 (Sydney, Melbourne, Guam)</option>
-              <option value="11">UTC+11 (Solomon Islands, Noumea)</option>
-              <option value="12">UTC+12 (Auckland, Fiji)</option>
-            </select>
+            <label>Dexcom Password</label>
+            <input type="password" id="dexPass" name="dex_pass" placeholder="leave blank to keep unchanged">
           </div>
-        </div>
+          
+          <div class="grid-2">
+            <div class="form-group">
+              <label>Dexcom Server</label>
+              <select id="dexServer" name="dex_server">
+                <option value="NON-US">NON-US (International)</option>
+                <option value="US">US (United States)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Timezone (UTC -12 to +12)</label>
+              <select id="tzOffset" name="tz_offset">
+                <option value="-12">UTC-12 (Baker Island)</option>
+                <option value="-11">UTC-11 (Samoa, Niue)</option>
+                <option value="-10">UTC-10 (Hawaii)</option>
+                <option value="-9">UTC-9 (Alaska)</option>
+                <option value="-8">UTC-8 (Pacific Time - US/Canada)</option>
+                <option value="-7">UTC-7 (Mountain Time - US/Canada)</option>
+                <option value="-6">UTC-6 (Central Time - US/Canada)</option>
+                <option value="-5">UTC-5 (Eastern Time - US/Canada)</option>
+                <option value="-4">UTC-4 (Atlantic Time, Santiago)</option>
+                <option value="-3">UTC-3 (Buenos Aires, Sao Paulo)</option>
+                <option value="-2">UTC-2 (Mid-Atlantic)</option>
+                <option value="-1">UTC-1 (Azores, Cape Verde)</option>
+                <option value="0">UTC+0 (London, Dublin, Lisbon)</option>
+                <option value="1">UTC+1 (Berlin, Paris, Rome, Madrid)</option>
+                <option value="2">UTC+2 (Jerusalem, Athens, Cairo, Helsinki)</option>
+                <option value="3">UTC+3 (Moscow, Riyadh, Istanbul, Nairobi)</option>
+                <option value="4">UTC+4 (Dubai, Baku, Tbilisi)</option>
+                <option value="5">UTC+5 (Karachi, Tashkent)</option>
+                <option value="6">UTC+6 (Dhaka, Almaty)</option>
+                <option value="7">UTC+7 (Bangkok, Jakarta, Hanoi)</option>
+                <option value="8">UTC+8 (Singapore, Beijing, Hong Kong)</option>
+                <option value="9">UTC+9 (Tokyo, Seoul)</option>
+                <option value="10">UTC+10 (Sydney, Melbourne, Guam)</option>
+                <option value="11">UTC+11 (Solomon Islands, Noumea)</option>
+                <option value="12">UTC+12 (Auckland, Fiji)</option>
+              </select>
+            </div>
+          </div>
 
-        <!-- CGM Target Range Inputs -->
-        <div class="grid-2">
-          <div class="form-group">
-            <label>CGM Target Low (mg/dL)</label>
-            <input type="number" id="targetLow" name="target_low" min="40" max="150" value="70">
+          <!-- CGM Target Range Inputs -->
+          <div class="grid-2">
+            <div class="form-group">
+              <label>CGM Target Low (mg/dL)</label>
+              <input type="number" id="targetLow" name="target_low" min="40" max="150" value="70">
+            </div>
+            <div class="form-group">
+              <label>CGM Target High (mg/dL)</label>
+              <input type="number" id="targetHigh" name="target_high" min="120" max="300" value="180">
+            </div>
           </div>
-          <div class="form-group">
-            <label>CGM Target High (mg/dL)</label>
-            <input type="number" id="targetHigh" name="target_high" min="120" max="300" value="180">
-          </div>
-        </div>
 
-        <div class="form-group" style="flex-direction:row; align-items:center; gap: 0.6rem; margin-top: 0.25rem;">
-          <input type="checkbox" id="time24h" name="time_24h" style="width: 1.2rem; height: 1.2rem;">
-          <label for="time24h" style="cursor:pointer; color: var(--text);">Use 24-Hour Time Format</label>
-        </div>
-        <button type="submit" class="primary" style="width: 100%; margin-top: 0.5rem;">Save Settings</button>
-      </form>
-    </div>
+          <div class="form-group" style="flex-direction:row; align-items:center; gap: 0.6rem; margin-top: 0.25rem;">
+            <input type="checkbox" id="time24h" name="time_24h" style="width: 1.2rem; height: 1.2rem;">
+            <label for="time24h" style="cursor:pointer; color: var(--text);">Use 24-Hour Time Format</label>
+          </div>
+          <button type="submit" class="primary" style="width: 100%; margin-top: 0.5rem;">Save Settings</button>
+        </form>
+      </div>
+    </details>
 
     <!-- System Actions & Stats -->
     <div class="card">
@@ -300,82 +337,80 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
     function renderCgmGraph(history, low, high) {
       const svg = document.getElementById('cgmGraphSvg');
       if (!history || history.length === 0) {
-        svg.innerHTML = '<text x="280" y="85" fill="#64748b" text-anchor="middle" font-size="13">No CGM History points available yet</text>';
+        svg.innerHTML = '<text x="50%" y="50%" fill="#64748b" text-anchor="middle" font-size="12">No recent CGM readings</text>';
         return;
       }
 
       const W = 560;
       const H = 160;
-      const padL = 36;
-      const padR = 16;
-      const padT = 18;
-      const padB = 24;
+      const padL = 35;
+      const padR = 20;
+      const padT = 20;
+      const padB = 25;
       const chartW = W - padL - padR;
       const chartH = H - padT - padB;
 
-      const minVal = 40;
-      const maxVal = 300;
-      const mapY = (v) => {
-        const clamped = Math.max(minVal, Math.min(maxVal, v));
-        return padT + chartH - ((clamped - minVal) / (maxVal - minVal)) * chartH;
-      };
+      let minVal = 40;
+      let maxVal = 260;
+      for (const val of history) {
+        if (val < minVal) minVal = Math.max(30, val - 10);
+        if (val > maxVal) maxVal = Math.min(400, val + 20);
+      }
 
-      const yLow = mapY(low);
-      const yHigh = mapY(high);
+      const getY = (val) => padT + chartH - ((val - minVal) / (maxVal - minVal)) * chartH;
+      const getX = (idx) => padL + (idx / (history.length - 1 || 1)) * chartW;
 
       let content = `
         <defs>
           <linearGradient id="cgmAreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#22c55e" stop-opacity="0.38" />
-            <stop offset="60%" stop-color="#22c55e" stop-opacity="0.15" />
-            <stop offset="100%" stop-color="#22c55e" stop-opacity="0.02" />
+            <stop offset="0%" stop-color="#22c55e" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#22c55e" stop-opacity="0.0"/>
           </linearGradient>
         </defs>
       `;
 
-      // Grid guides & background areas
-      // In-range shaded zone
-      content += `<rect x="${padL}" y="${yHigh}" width="${chartW}" height="${yLow - yHigh}" fill="rgba(34, 197, 94, 0.08)" rx="4" />`;
+      // Target threshold guides
+      const yHigh = getY(high);
+      const yLow = getY(low);
+      content += `<line x1="${padL}" y1="${yHigh}" x2="${padL + chartW}" y2="${yHigh}" stroke="#eab308" stroke-dasharray="4" stroke-width="1.2" opacity="0.75" />`;
+      content += `<text x="${padL - 4}" y="${yHigh + 3}" fill="#eab308" font-size="10" text-anchor="end">${high}</text>`;
+      content += `<line x1="${padL}" y1="${yLow}" x2="${padL + chartW}" y2="${yLow}" stroke="#ef4444" stroke-dasharray="4" stroke-width="1.2" opacity="0.75" />`;
+      content += `<text x="${padL - 4}" y="${yLow + 3}" fill="#ef4444" font-size="10" text-anchor="end">${low}</text>`;
 
-      // Threshold lines
-      content += `<line x1="${padL}" y1="${yHigh}" x2="${padL + chartW}" y2="${yHigh}" stroke="#eab308" stroke-dasharray="4,4" stroke-width="1.2" />`;
-      content += `<text x="${padL - 6}" y="${yHigh + 4}" fill="#eab308" font-size="10" text-anchor="end">${high}</text>`;
-
-      content += `<line x1="${padL}" y1="${yLow}" x2="${padL + chartW}" y2="${yLow}" stroke="#ef4444" stroke-dasharray="4,4" stroke-width="1.2" />`;
-      content += `<text x="${padL - 6}" y="${yLow + 4}" fill="#ef4444" font-size="10" text-anchor="end">${low}</text>`;
-
-      // Historical line & points
-      const stepX = history.length > 1 ? chartW / (history.length - 1) : chartW / 2;
+      // Generate SVG path for line and area fill
       let pathD = '';
-      let pointsSvg = '';
-      const baselineY = padT + chartH;
+      let areaD = '';
+      let points = [];
 
-      history.forEach((val, idx) => {
-        const px = padL + idx * stepX;
-        const py = mapY(val);
-        if (idx === 0) pathD += `M ${px} ${py}`;
-        else pathD += ` L ${px} ${py}`;
-
-        let ptCol = 'var(--green)';
-        if (val < low || val > 250) ptCol = 'var(--red)';
-        else if (val > high) ptCol = 'var(--yellow)';
-
-        pointsSvg += `<circle cx="${px}" cy="${py}" r="3.5" fill="${ptCol}" stroke="#0f172a" stroke-width="1" />`;
+      history.forEach((val, i) => {
+        const x = getX(i);
+        const y = getY(val);
+        points.push({x, y, val});
+        if (i === 0) {
+          pathD += `M ${x} ${y}`;
+          areaD += `M ${x} ${padT + chartH} L ${x} ${y}`;
+        } else {
+          pathD += ` L ${x} ${y}`;
+          areaD += ` L ${x} ${y}`;
+        }
       });
 
-      // Translucent green gradient area fill under the curve
-      if (history.length > 1) {
-        const firstX = padL;
-        const lastX = padL + (history.length - 1) * stepX;
-        const areaD = `${pathD} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
-        content += `<path d="${areaD}" fill="url(#cgmAreaGrad)" />`;
-      }
+      areaD += ` L ${getX(history.length - 1)} ${padT + chartH} Z`;
 
-      content += `<path d="${pathD}" fill="none" stroke="#22c55e" stroke-width="2.5" opacity="0.9" />`;
-      content += pointsSvg;
+      // Draw Area
+      content += `<path d="${areaD}" fill="url(#cgmAreaGrad)" />`;
+      // Draw Line
+      content += `<path d="${pathD}" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />`;
 
-      // X-axis baseline
-      content += `<line x1="${padL}" y1="${padT + chartH}" x2="${padL + chartW}" y2="${padT + chartH}" stroke="#334155" stroke-width="1" />`;
+      // Draw Data Points
+      points.forEach((pt, i) => {
+        let color = '#22c55e';
+        if (pt.val < low || pt.val > 250) color = '#ef4444';
+        else if (pt.val > high) color = '#eab308';
+        content += `<circle cx="${pt.x}" cy="${pt.y}" r="${i === points.length - 1 ? 4.5 : 2.5}" fill="${color}" stroke="#0f172a" stroke-width="1.5" />`;
+      });
+
+      // Bottom time labels
       content += `<text x="${padL}" y="${H - 6}" fill="#64748b" font-size="9">Earliest</text>`;
       content += `<text x="${padL + chartW}" y="${H - 6}" fill="#64748b" font-size="9" text-anchor="end">Latest</text>`;
 
@@ -492,8 +527,9 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
 
     function refreshScreenMirror() {
       if (mirrorPending) return;
-      mirrorPending = true;
       const img = document.getElementById('liveScreenImg');
+      if (!img) return;
+      mirrorPending = true;
       const timestamp = new Date().getTime();
       img.src = '/api/screenshot?t=' + timestamp;
       const dlBtn = document.getElementById('downloadScreenshotBtn');
@@ -503,7 +539,7 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
     function onScreenLoaded() {
       mirrorPending = false;
       const img = document.getElementById('liveScreenImg');
-      if (img.naturalWidth && img.naturalHeight) {
+      if (img && img.naturalWidth && img.naturalHeight) {
         document.getElementById('screenDimensions').innerText = img.naturalWidth + ' x ' + img.naturalHeight + ' px (Active Framebuffer)';
       }
     }
@@ -518,13 +554,27 @@ static const char HTML_INDEX[] PROGMEM = R"rawliteral(
         mirrorInterval = null;
       }
       if (enabled) {
-        mirrorInterval = setInterval(refreshScreenMirror, 2000);
+        // Refresh immediately once upon enable
+        refreshScreenMirror();
+        // Refresh every 10 seconds (10000ms)
+        mirrorInterval = setInterval(refreshScreenMirror, 10000);
+      }
+    }
+
+    function onMirrorToggle(isOpen) {
+      const chk = document.getElementById('autoRefreshMirror');
+      if (isOpen) {
+        refreshScreenMirror();
+        if (chk && chk.checked) {
+          toggleAutoMirror(true);
+        }
+      } else {
+        toggleAutoMirror(false);
       }
     }
 
     loadStatus();
     setInterval(loadStatus, 3000);
-    toggleAutoMirror(true);
   </script>
 </body>
 </html>
