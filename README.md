@@ -140,6 +140,11 @@
   - Timezone offset selector (`-12` to `+12` UTC) with instantaneous SNTP re-sync.
   - 12h / 24h clock format toggle.
 
+<p align="center">
+  <img src="docs/images/safari_web_dashboard.jpg" width="680" alt="Safari Web Dashboard & Live Screen Mirror" />
+</p>
+
+
 ## 🎮 Hardware Controls & Enclosure
 
 <p align="center">
